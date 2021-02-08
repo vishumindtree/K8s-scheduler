@@ -11,7 +11,7 @@ First of all, you need to install `kubernetes-client`
 
 Install via PIP
 
-     pip3 install --pre  kubernetes=17.14.0a1
+     pip3 install --pre  kubernetes==17.14.0a1
  
 Build from source
 

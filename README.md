@@ -7,9 +7,19 @@ Initially we assumed that Jenkins by itself could schedule 1000x of tasks. But i
 
 ## Checkout kubernetes-client
 
-First of all, you need to download, build and install `kubernetes-client`
+First of all, you need to install `kubernetes-client`
+
+Install via PIP
 
      pip3 install --pre  kubernetes=17.14.0a1
+ 
+Build from source
+
+     git clone git@github.com:kubernetes-client/python.git k8s-python
+     cd k8s-python
+     git checkout v17.14.0a1
+     python3 setup.py build
+     sudo python3 setup.py install
 
 ## Setup kube config
 

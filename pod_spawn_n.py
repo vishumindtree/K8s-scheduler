@@ -7,6 +7,7 @@ Spawns a new POD on each command to be executed
 Creates a pool of workers for each POD
 """
 
+import sys
 import time
 import yaml
 from kubernetes import config
@@ -18,6 +19,15 @@ from kubernetes.stream import stream
 from argparse import ArgumentParser
 from multiprocessing import Process, Queue, current_process
 from pprint import pprint
+import kubernetes.client.exceptions
+import os
+import signal
+
+
+class MyScheduler(object):
+
+    def __init__(self):
+        self.foo = 'bar'
 
 
 def spawn_pod(api_instance, name, nsel, image='busybox', ns='default'):
@@ -48,7 +58,7 @@ def spawn_pod(api_instance, name, nsel, image='busybox', ns='default'):
                 "args": [
                     "/bin/sh",
                     "-c",
-                    "while true;do date;sleep 5; done"
+                    'seq 0 99 |while read i ; do echo -n "$i: ";date; sleep 600; done'
                 ]
             }]
         }
@@ -88,30 +98,62 @@ def exec_my_command(api_instance, cmd, name, ns):
 # Function run by worker processes
 #
 
-def worker(api_instance, name, image, ns, nsel, input_q, output_q):
+def worker(api_instance, name, image, ns, nsel, task_q, done_q):
+    """
+    This worker spawns a pod before handling task_q items
+    and kills the pod at the end
+    """
     if not spawn_pod(api_instance, name, nsel, image, ns):
         return
-    for cmd in iter(input_q.get, 'STOP'):
-        exit_code = exec_my_command(api_instance, cmd, name, ns)
-        output_q.put((cmd, exit_code))
-    # now, delete the pod
-    body = client.V1DeleteOptions()
-    resp = api_instance.delete_namespaced_pod(name, ns, body=body)
-    print("delete_namespaced_pod: {}".format(name))
-    # pprint(resp)
-
-
-def worker2(api_instance, name, image, ns, nsel, input_q, output_q):
-
-    for (n, cmd) in enumerate(iter(input_q.get, 'STOP')):
-        pod_name = "{}-{:04d}".format(name, n)
-        if not spawn_pod(api_instance, pod_name, nsel, image, ns):
-            return
-        exit_code = exec_my_command(api_instance, cmd, pod_name, ns)
-        output_q.put((cmd, exit_code))
+    try:
+        for cmd in iter(task_q.get, 'STOP'):
+            exit_code = exec_my_command(api_instance, cmd, name, ns)
+            done_q.put((cmd, exit_code))
+    except kubernetes.client.exceptions.ApiException as e:
+        return
+    except KeyboardInterrupt as e:
+        return
+    finally:
         # now, delete the pod
         body = client.V1DeleteOptions()
-        resp = api_instance.delete_namespaced_pod(pod_name, ns, body=body)
+        resp = api_instance.delete_namespaced_pod(name, ns, body=body)
+        print("delete_namespaced_pod: {}".format(name))
+        # pprint(resp)
+
+
+def worker2(api_instance, name, image, ns, nsel, task_q, done_q):
+    """
+    This worker spawns a pod for the each new task
+    """
+
+    for (n, cmd) in enumerate(iter(task_q.get, 'STOP')):
+        has_pod = False
+        pod_name = "{}-{:04d}".format(name, n)
+        exit_code = None
+        try:
+            if not spawn_pod(api_instance, pod_name, nsel, image, ns):
+                # terminate worker if can't spawn a pod
+                return
+            has_pod = True
+            exit_code = exec_my_command(api_instance, cmd, pod_name, ns)
+        except kubernetes.client.exceptions.ApiException as e:
+            print("ERR: %s" % e, file=sys.stderr)
+            return
+        except KeyboardInterrupt as e:
+            return
+        finally:
+            # always publish results to done_q
+            done_q.put((cmd, exit_code))
+            # now, delete the pod
+            if has_pod:
+                body = client.V1DeleteOptions()
+                resp = api_instance.delete_namespaced_pod(pod_name, ns,
+                                                          body=body)
+
+
+def handler(signum, frame):
+    print('Signal handler called with signal', signum)
+    raise OSError("Let's stop")
 
 
 def scheduler(job):
@@ -141,10 +183,12 @@ def scheduler(job):
     for i in range(NUMBER_OF_PROCESSES):
         api_instance = core_v1_api.CoreV1Api()
         Process(target=worker2,
-                args=(api_instance, "{}-{:02d}".format(job['name'], i),
+                args=(api_instance, "{}-{:03d}".format(job['name'], i),
                       job['image'], job.get('ns', 'default'),
                       nsel, task_q, done_q)
                 ).start()
+    # signal.signal(signal.SIGTERM, handler)
+    # signal.signal(signal.SIGINT, handler)   # Ctrl-C
 
     # Tell child processes to stop
     for i in range(NUMBER_OF_PROCESSES):

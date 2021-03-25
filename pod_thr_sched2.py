@@ -25,7 +25,7 @@ import kubernetes.client.exceptions
 import queue
 import random
 import threading
-
+import string
 
 class JobLogger(object):
     def __init__(self, log_path, job_name):
@@ -290,7 +290,8 @@ class PodScheduler(object):
 
     def __init__(self, pod_name, image, tasks, node_selector,
             namespace='default', workers_num=50, log_path='.', verbose=False):
-        self.pod_name = pod_name
+        random_str = ''.join(random.choice(string.ascii_lowercase) for x in range(5))
+        self.pod_name = "{}-{}".format( pod_name, random_str)
         self.image = image
         self.tasks = tasks
         self.node_selector = node_selector

@@ -201,7 +201,8 @@ def scheduler(job):
 
 def main(args):
     # load job definition from the job file
-    with open(args.job, 'r') as fi:
+    #sys.setdefaultencoding('utf-8')
+    with open(args.job, 'r', encoding='utf8') as fi:
         job = yaml.safe_load(fi)
     config.load_kube_config()
     c = Configuration()

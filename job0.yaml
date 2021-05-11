@@ -1,4 +1,4 @@
-﻿workers_num: 4000
+﻿workers_num: 8000
 # image: busybox
 image: harbor.mellanox.com/swx-storage/x86_64/busybox
 name: pod-spawn-test

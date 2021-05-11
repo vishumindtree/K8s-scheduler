@@ -184,7 +184,7 @@ def scheduler(job):
         api_instance = core_v1_api.CoreV1Api()
         Process(target=worker2,
                 args=(api_instance, "{}-{:03d}".format(job['name'], i),
-                      job['image'], job.get('ns', 'default'),
+                      job['image'], job.get('ns', 'test-demo1'),
                       nsel, task_q, done_q)
                 ).start()
     # signal.signal(signal.SIGTERM, handler)

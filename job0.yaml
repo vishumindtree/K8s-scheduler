@@ -1,15 +1,15 @@
-﻿workers_num: 8000
+﻿workers_num: 500
 # image: busybox
 image: harbor.mellanox.com/swx-storage/x86_64/busybox
 name: pod-spawn-test
-multiply: 20
+multiply: 50
 nodeSelector:
     beta.kubernetes.io/os: linux
     kubernetes.io/arch: amd64
 tasks:
     - "pwd"
     - "date"
-    - "sleep 1; echo OK"
+    - "sleep 25; echo OK"
     - "ls -l /bin/*sh"
     - "id"
     - "false"

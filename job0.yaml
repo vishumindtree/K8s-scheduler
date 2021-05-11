@@ -2,7 +2,7 @@
 # image: busybox
 image: harbor.mellanox.com/swx-storage/x86_64/busybox
 name: pod-spawn-test
-multiply: 1
+multiply: 100
 nodeSelector:
     beta.kubernetes.io/os: linux
     kubernetes.io/arch: amd64

@@ -30,7 +30,7 @@ class MyScheduler(object):
         self.foo = 'bar'
 
 
-def spawn_pod(api_instance, name, nsel, image='busybox', ns='default'):
+def spawn_pod(api_instance, name, nsel, image='busybox', ns='test-demo1'):
     # name is a container(pod?) name to spawn
     resp = None
     try:
